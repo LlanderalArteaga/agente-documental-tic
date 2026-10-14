@@ -33,14 +33,30 @@ def index():
 def health():
     return {"status": "ok", "configured": bool(settings.openai_api_key and settings.drive_folder_id)}
 
+
 @app.get("/api/documents")
 def documents():
-    doc = SyncService.load_manifest()
-    return {"documents": list(doc.get("documents", {}).values()),
-            "indexed": len(doc.get("documents", {})),
-            "vector_store_configured": bool(settings.vector_store_id or doc.get("vector_store_id"))}
+    import json
 
+    public_manifest = ROOT / "data" / "manifest.public.json"
 
+    if public_manifest.exists():
+        with public_manifest.open("r", encoding="utf-8") as f:
+            doc = json.load(f)
+        documents_list = doc.get("documents", [])
+    else:
+        doc = SyncService.load_manifest()
+        documents_list = list(doc.get("documents", {}).values())
+
+    local_manifest = SyncService.load_manifest()
+
+    return {
+        "documents": documents_list,
+        "indexed": len(documents_list),
+        "vector_store_configured": bool(
+            settings.vector_store_id or local_manifest.get("vector_store_id")
+        )
+    }
 
 
 def require_api_key(request: Request):
