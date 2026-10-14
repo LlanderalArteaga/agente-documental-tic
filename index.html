@@ -21,6 +21,24 @@
         </div>
     </header>
     <main class="container py-4">
+
+        <section class="card shell mb-4" id="login-panel">
+            <div class="card-body">
+                <h2 class="h5">Acceso al agente</h2>
+                <p class="small text-secondary">
+                    Introduce la clave administrativa para habilitar las consultas.
+                </p>
+                <form id="login-form">
+                    <label class="form-label" for="admin-key">Clave de acceso</label>
+                    <input class="form-control" type="password" id="admin-key" autocomplete="current-password"
+                        maxlength="256" required>
+                    <button class="btn btn-primary mt-3" type="submit" id="login-button">
+                        Iniciar sesión
+                    </button>
+                    <div id="login-message" class="small mt-2" role="status" aria-live="polite"></div>
+                </form>
+            </div>
+        </section>
         <div class="row g-4">
             <div class="col-lg-4">
                 <section class="card shell h-100">

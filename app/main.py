@@ -5,10 +5,14 @@ from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
-from app.models.documento import AskRequest, AskResponse
+from app.models.documento import AskRequest, AskResponse, LoginRequest
 from app.services.sync_service import SyncService
 from app.services.agent_service import AgentService
 import os
+import hmac
+import secrets
+from fastapi.responses import JSONResponse
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 ROOT = Path(__file__).resolve().parents[1]
 app = FastAPI(title="Archivo TIC IA", version="1.0.0")
@@ -32,6 +36,38 @@ def index():
 @app.get("/api/health")
 def health():
     return {"status": "ok", "configured": bool(settings.openai_api_key and settings.drive_folder_id)}
+
+
+@app.post("/api/login")
+def login(payload: LoginRequest):
+    expected_key = settings.local_admin_key
+
+    if not expected_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Falta configurar LOCAL_ADMIN_KEY."
+        )
+
+    if not hmac.compare_digest(payload.key, expected_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Clave incorrecta."
+        )
+
+    serializer = get_session_serializer()
+    token = serializer.dumps({"authenticated": True})
+
+    response = JSONResponse({"success": True})
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=token,
+        httponly=True,
+        secure=bool(os.getenv("VERCEL")),
+        samesite="strict",
+        max_age=SESSION_MAX_AGE,
+        path="/"
+    )
+    return response
 
 
 @app.get("/api/documents")
@@ -59,23 +95,38 @@ def documents():
     }
 
 
-def require_api_key(request: Request):
-    expected_key = settings.local_admin_key
+SESSION_COOKIE = "tic_session"
+SESSION_MAX_AGE = 3600
 
-    if not expected_key:
+def get_session_serializer():
+    secret = os.getenv("SESSION_SECRET", "")
+    if not secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Falta configurar SESSION_SECRET."
+        )
+    return URLSafeTimedSerializer(secret, salt="archivo-tic-session")
+
+def require_api_key(request: Request):
+    if not settings.local_admin_key:
         raise HTTPException(
             status_code=503,
             detail="Falta configurar LOCAL_ADMIN_KEY."
         )
 
-    provided_key = request.headers.get("X-Admin-Key", "")
+    serializer = get_session_serializer()
+    token = request.cookies.get(SESSION_COOKIE, "")
 
-    import hmac
-    if not hmac.compare_digest(provided_key, expected_key):
+    try:
+        session = serializer.loads(token, max_age=SESSION_MAX_AGE)
+    except (BadSignature, SignatureExpired):
         raise HTTPException(
             status_code=401,
-            detail="Clave de acceso incorrecta o no proporcionada."
+            detail="Inicia sesión para consultar el agente."
         )
+
+    if session.get("authenticated") is not True:
+        raise HTTPException(status_code=401, detail="Sesión no válida.")
 
 
 @app.post(

@@ -20,23 +20,37 @@ def test_documents():
     assert isinstance(r.json()["documents"], list)
 
 
+
 def test_question_validation(monkeypatch):
     import app.main as main_module
     from types import SimpleNamespace
+    from itsdangerous import URLSafeTimedSerializer
 
     monkeypatch.setattr(
         main_module,
         "settings",
-        SimpleNamespace(local_admin_key="clave-de-prueba")
+        SimpleNamespace(
+            local_admin_key="clave-de-prueba",
+            openai_api_key="",
+            vector_store_id=""
+        )
     )
+    monkeypatch.setenv("SESSION_SECRET", "secreto-temporal-para-pruebas")
+
+    serializer = URLSafeTimedSerializer(
+        "secreto-temporal-para-pruebas",
+        salt="archivo-tic-session"
+    )
+    token = serializer.dumps({"authenticated": True})
 
     r = client.post(
         "/api/ask",
         json={"question": "a"},
-        headers={"X-Admin-Key": "clave-de-prueba"}
+        cookies={"tic_session": token}
     )
 
     assert r.status_code == 422
+
 
 
 def test_sync_not_public():
