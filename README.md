@@ -1,35 +1,40 @@
 # 2.3 Agente documental con Google Drive — Archivo TIC IA
 
-Proyecto académico de **Inteligencia artificial aplicada a las TIC**, Tecnológico Nacional de México, campus Pachuca. Continuación de **2.2 Agente investigador**: se reemplaza la búsqueda pública Web Search por recuperación documental de **Google Drive**, **OpenAI Vector Stores** y **File Search (RAG)**.
+Proyecto académico de **Inteligencia Artificial aplicada a las TIC**, Tecnológico Nacional de México, campus Pachuca. Es la continuación de **2.2 Agente investigador**: reemplaza la búsqueda pública en la web por recuperación documental desde Google Drive con **OpenAI Vector Stores** y **File Search (RAG)**.
 
 ## Propósito pedagógico
 
-El alumno comprenderá que una organización necesita consultar documentos propios y autorizados, no solamente Internet. Identificará el papel de OAuth, Google Drive API, sincronización, indexación semántica, recuperación de contexto, respuestas sustentadas y trazabilidad mediante fuentes. Comparará respuestas **sin** y **con** acceso documental, observará qué sucede al modificar una fuente y realizará todas las pruebas iniciales en **localhost**. El despliegue a Vercel es un **reto autónomo**, no una configuración lista para producción.
+El proyecto muestra cómo consultar documentos propios y autorizados, y cómo se relacionan OAuth, Google Drive API, sincronización, indexación semántica, recuperación de contexto y respuestas con fuentes verificables. Permite comparar respuestas con y sin File Search y observar qué ocurre al agregar, modificar o eliminar documentos.
 
 ## Arquitectura
 
-- `app/main.py`: FastAPI, endpoints REST, frontend estático y protección local de sincronización.
-- `app/core/config.py`: configuración y secretos cargados desde `.env`.
-- `app/models/documento.py`: modelos de solicitud y respuesta.
-- `app/services/drive_service.py`: OAuth Desktop, listado limitado a una carpeta y descarga/exportación de archivos.
-- `app/services/sync_service.py`: Vector Store, manifiesto de archivos, altas, cambios y bajas.
-- `app/services/agent_service.py`: Responses API + File Search y fuentes verificadas por anotaciones de archivo.
-- `index.html` y `assets/`: interfaz Bootstrap 5 y clases JavaScript.
-- `data/manifest.json`: estado local del índice (no se publica).
+- `app/main.py`: aplicación FastAPI, interfaz y endpoints REST; protege consultas y sincronización con una sesión.
+- `app/core/config.py`: lee la configuración del servidor desde variables de entorno y `.env` en ejecución local.
+- `app/models/documento.py`: valida las solicitudes y respuestas de la API.
+- `app/services/drive_service.py`: accede a Drive. En local usa OAuth Desktop; en Vercel usa una cuenta de servicio configurada en el servidor.
+- `app/services/sync_service.py`: compara los archivos, los carga al Vector Store y mantiene el manifiesto.
+- `app/services/agent_service.py`: consulta OpenAI con File Search y devuelve solo fuentes que coinciden con citas del modelo.
+- `index.html` y `assets/`: interfaz Bootstrap y módulos JavaScript.
+- `data/manifest.json`: estado local del índice; está excluido de Git.
+- `data/manifest.public.json`: manifiesto de inicio incluido en el repositorio. Contiene nombres, enlaces e identificadores de archivos, no claves de API.
+
+En local, el manifiesto se escribe en `data/manifest.json`. En Vercel, se guarda en Upstash Redis porque el disco de una función serverless no es almacenamiento persistente.
 
 ## 1. Requisitos
 
-Python 3.11+, VS Code, Git, cuentas de Google Cloud y OpenAI API con créditos, navegador y documentos de prueba autorizados. **Las claves y los archivos de Drive no se incluyen en el ZIP.**
+Python 3.11 o posterior, VS Code, Git, una cuenta de Google, acceso a Google Cloud, una cuenta de OpenAI API con crédito y documentos de prueba autorizados. No incluyas datos personales, confidenciales ni archivos sin permiso de sus propietarios.
 
-## 2. Configuración Google Drive
+## 2. Configurar Google Drive para uso local
 
 1. En [Google Cloud Console](https://console.cloud.google.com/), crea un proyecto y habilita **Google Drive API**.
-2. Configura **Google Auth Platform**, pantalla de consentimiento y usuarios de prueba si corresponde.
-3. Crea credenciales OAuth 2.0 de tipo **Desktop app** y descarga el archivo a la raíz del proyecto como `credentials.json`.
-4. Crea una carpeta de Google Drive con **al menos cinco** documentos autorizados. Admite PDF, TXT y Google Docs nativos. Extrae el ID de su URL `/folders/ID`.
-5. Este ejercicio utiliza el alcance `drive.readonly` para lectura; puede exigir validaciones adicionales al distribuir una app real. Usa una cuenta y una carpeta de laboratorio sin datos personales.
+2. Configura Google Auth Platform y la pantalla de consentimiento; agrega usuarios de prueba si Google lo solicita.
+3. Crea credenciales OAuth 2.0 de tipo **Desktop app** y guarda el archivo descargado en la raíz del proyecto como `credentials.json`.
+4. Crea una carpeta de Drive con **al menos cinco documentos autorizados**. Se admiten PDF, TXT y Google Docs nativos. El ID está en la URL de la carpeta, después de `/folders/`.
+5. El acceso local usa el alcance `drive.readonly`. Usa una carpeta de laboratorio sin datos personales.
 
-## 3. Preparar proyecto en Windows (PowerShell)
+## 3. Preparar el proyecto en Windows
+
+En PowerShell, desde la raíz del repositorio:
 
 ```powershell
 py -m venv .venv
@@ -38,79 +43,115 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Edita `.env`: define `OPENAI_API_KEY`, un `OPENAI_MODEL` compatible con File Search y `GOOGLE_DRIVE_FOLDER_ID`. `VECTOR_STORE_ID` se deja vacío la primera vez: el sistema lo guardará en el manifiesto. No insertes claves en el código ni en el navegador.
+Edita `.env` en tu computadora. Configura `OPENAI_API_KEY`, `OPENAI_MODEL`, `LOCAL_ADMIN_KEY` y `SESSION_SECRET`. `GOOGLE_DRIVE_FOLDER_ID` es una carpeta inicial opcional; también puedes pegar otra desde la interfaz. Si ya tienes un Vector Store, conserva su `VECTOR_STORE_ID`; si se deja vacío, el sistema puede crear uno al sincronizar por primera vez.
 
-## 4. Ejecutar localmente
+`SESSION_SECRET` debe ser un valor aleatorio y mantenerse estable mientras quieras conservar las sesiones. No uses la clave administrativa como `SESSION_SECRET`.
+
+## 4. Iniciar sesión y usar el agente
+
+Ejecuta el servidor local:
 
 ```powershell
 python app.py
 ```
 
-Abre <http://127.0.0.1:5000>. Usa **Sincronizar desde Drive** para autenticar Google, descargar/exportar los archivos autorizados e indexarlos. La primera ejecución abre el navegador OAuth en la computadora donde está corriendo Python. Después escribe preguntas sobre el contenido. Para ensayar recuperación, desactiva **File Search (RAG)** y repite exactamente la misma pregunta.
+Abre <http://127.0.0.1:5000>. La primera vez, escribe el valor de `LOCAL_ADMIN_KEY`. El servidor crea una cookie firmada y `HttpOnly`; la página recuerda la sesión en ese navegador durante **30 días**, incluso al cerrar y volver a abrir la página. El servidor local escucha en `127.0.0.1`; no lo expongas en `0.0.0.0`.
 
-**Importante:** la sincronización usa una solicitud HTTP en localhost. Si estableces `LOCAL_ADMIN_KEY`, proporciona la cabecera `X-Admin-Key` mediante Thunder Client para `/api/sync` (el botón web no envía claves administrativas). Ejecuta el backend en `127.0.0.1`, no en `0.0.0.0`.
+La sesión termina si pulsas **Cerrar sesión**, borras las cookies del sitio o pasan 30 días. Al volver a entrar, escribe otra vez `LOCAL_ADMIN_KEY`. Cada navegador mantiene su propia sesión. No guardes la clave en el navegador ni en el código JavaScript.
 
-## 5. Endpoints
+## 5. Elegir y sincronizar una carpeta de Drive
+
+En **Carpeta de Google Drive**, pega el ID o la URL de una carpeta y pulsa **Sincronizar carpeta**. En local, la primera sincronización abre el flujo OAuth de Google en la computadora donde corre Python. La carpeta indicada en `GOOGLE_DRIVE_FOLDER_ID` se carga inicialmente si existe; puedes cambiarla desde la misma interfaz.
+
+La sincronización admite PDF, TXT y Google Docs. Detecta archivos nuevos, modificados, eliminados y sin cambios. Al cambiar de carpeta, confirma la operación: si la nueva sincronización termina sin errores, quita del Vector Store los archivos de la carpeta anterior y deja indexada la nueva. Esto **no elimina los documentos originales de Google Drive**. Si se reportan errores durante el cambio, corrige el acceso o los archivos y vuelve a sincronizar.
+
+Para que la cuenta local de Google pueda leer otra carpeta, inicia sesión con una cuenta que tenga acceso a ella. En Vercel, comparte cada carpeta con el correo de la cuenta de servicio configurada para el servidor.
+
+## 6. Sesiones y endpoints
 
 | Método | Ruta | Función |
 |---|---|---|
-| GET | `/api/health` | Comprueba configuración y servidor. |
-| GET | `/api/documents` | Documentos ya indexados (manifiesto local). |
-| POST | `/api/sync` | Indexa cambios, requiere cliente desde loopback. |
-| POST | `/api/ask` | Pregunta con `question` y `use_search`. |
+| `GET` | `/api/health` | Indica si el servidor tiene su configuración básica. |
+| `GET` | `/api/session` | Comprueba si la cookie de sesión sigue vigente. |
+| `POST` | `/api/login` | Valida `LOCAL_ADMIN_KEY` y crea la cookie de sesión. |
+| `POST` | `/api/logout` | Cierra la sesión del navegador actual. |
+| `GET` | `/api/documents` | Devuelve los documentos indexados y la carpeta activa; requiere sesión. |
+| `POST` | `/api/sync` | Sincroniza la carpeta enviada en `folder_id`; requiere sesión. |
+| `POST` | `/api/ask` | Recibe `question` y `use_search`; requiere sesión. |
 
-Ejemplo JSON para Thunder Client:
+Ejemplo de solicitud para `/api/ask`:
 
 ```json
 {"question": "¿Qué documentos tratan sobre AWS RDS?", "use_search": true}
 ```
 
-## 6. Experimentos
+## 7. Despliegue en Vercel
 
-1. Ejecuta una pregunta muy específica presente en los archivos **sin File Search**.
-2. Repite **con File Search**: inspecciona contenido y fuentes (anotaciones verificadas).
-3. Prueba temas ausentes: el agente debe declarar insuficiencia de información.
+El código del proyecto no contiene secretos. Antes de desplegar, configura estas variables en los ajustes del proyecto de Vercel, para el entorno **Production**:
+
+| Variable | Uso |
+|---|---|
+| `OPENAI_API_KEY` | Clave privada de OpenAI. |
+| `OPENAI_MODEL` | Modelo compatible con File Search; si se omite, se usa el valor predeterminado del código. |
+| `LOCAL_ADMIN_KEY` | Clave que se escribe al iniciar sesión. Usa una nueva y privada. |
+| `SESSION_SECRET` | Secreto aleatorio para firmar las cookies. Mantén el mismo valor entre despliegues para conservar sesiones. |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Contenido JSON de la cuenta de servicio de Google. |
+| `UPSTASH_REDIS_REST_URL` | URL REST de la base de datos Upstash Redis. |
+| `UPSTASH_REDIS_REST_TOKEN` | Token privado de esa base de datos. |
+| `VECTOR_STORE_ID` | Opcional si ya existe un Vector Store que quieras reutilizar; si no se configura, el sistema puede crear uno. |
+| `GOOGLE_DRIVE_FOLDER_ID` | Carpeta inicial opcional que se muestra si todavía no hay una carpeta activa guardada. |
+
+Pasos para habilitar Drive y almacenamiento persistente:
+
+1. En Google Cloud, crea una **cuenta de servicio** y habilita Google Drive API.
+2. Comparte con el correo de esa cuenta las carpetas que quieras sincronizar y dale permiso de lector.
+3. Copia el JSON completo de la cuenta de servicio en `GOOGLE_SERVICE_ACCOUNT_JSON` en Vercel. No subas ese JSON al repositorio.
+4. Crea una base Redis en Upstash y copia su URL REST y token en `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN`.
+5. Agrega las variables de OpenAI y de sesión indicadas arriba. Si ya tienes documentos en un Vector Store, configura su ID para conservar esa base.
+6. Publica los cambios del código y espera a que Vercel termine un nuevo despliegue. Después inicia sesión, pega el ID o enlace de una carpeta autorizada y pulsa **Sincronizar carpeta**.
+
+Si falta la cuenta de servicio o Upstash, la sincronización de Vercel no podrá completarse. `credentials.json`, `token.json` y el flujo OAuth Desktop son solo para ejecución local; no los subas para resolver la autenticación del despliegue.
+
+## 8. Git y archivos excluidos
+
+`.gitignore` excluye `.env`, `credentials.json`, `token.json`, el entorno virtual, cachés y `data/manifest.json`. No quites esas reglas ni publiques sus contenidos. El archivo `data/manifest.public.json` está exceptuado expresamente y sí se incluye; revisa sus nombres y enlaces antes de publicarlo.
+
+Antes de hacer commit, revisa `git status` y agrega solo archivos del proyecto que quieras publicar. Evita `git add .` si no has revisado los archivos nuevos; por ejemplo, carpetas como `.vscode/` pueden contener preferencias locales.
+
+```powershell
+git status --short
+git add README.md .env.example .gitignore app assets index.html index.py requirements.txt data/manifest.public.json
+git commit -m "feat: recordar sesion y elegir carpeta de Drive"
+git push
+```
+
+Si el repositorio está conectado a Vercel, el `git push` inicia el despliegue según la configuración del proyecto. Los valores de `.env` locales no se publican ni se copian automáticamente a Vercel; configura cada variable secreta en el panel de Vercel.
+
+## 9. Experimentos
+
+1. Pregunta sobre un dato muy específico primero con File Search desactivado y luego activado.
+2. Inspecciona las fuentes verificadas de la respuesta y contrástalas con los documentos.
+3. Pregunta sobre un tema que no esté en la carpeta; el agente debe decir que no encontró evidencia suficiente.
 4. Agrega un documento con un dato singular, sincroniza y vuelve a preguntar.
-5. Modifica un documento, vuelve a sincronizar y verifica que no se duplican registros en el manifiesto.
-6. Elimina un documento de prueba del Drive autorizado, sincroniza y comprueba que desaparece del manifiesto.
+5. Modifica un documento, sincroniza y comprueba que se actualice en el índice.
+6. Elimina un documento de prueba de Drive, sincroniza y comprueba que se retire del índice.
+7. Cambia a otra carpeta autorizada, confirma la operación y revisa el nuevo listado. Los archivos originales deben seguir en Drive.
+8. Cierra sesión, vuelve a abrir el sitio e inicia sesión de nuevo para observar el ciclo de la cookie.
 
-**Limitaciones:** las búsquedas RAG pueden generar errores; comprueba siempre las respuestas contra las fuentes. La eliminación del índice tiene **consistencia eventual** y puede tardar en reflejarse. Los resultados sin citas explícitas no se presentan como fuentes. La actualización de un mismo archivo puede crear cargos transitorios mientras se reemplaza el anterior.
-
-## 7. Pruebas automáticas
+## 10. Pruebas automáticas
 
 ```powershell
 pytest -q
 ```
 
-Las pruebas son locales y no requieren claves reales ni consumen OpenAI.
+Las pruebas locales no requieren claves reales ni consumen OpenAI.
 
-## 8. Git/GitHub y reto autónomo Vercel
+## 11. Costos, privacidad y limitaciones
 
-```powershell
-git init
-git add .
-git commit -m "chore: estructura inicial del agente documental"
-```
+OpenAI cobra por uso del modelo, búsqueda y almacenamiento según sus tarifas vigentes. El contenido de los archivos sincronizados se transmite a OpenAI para indexación. Actualizar un documento puede generar cargos transitorios mientras se reemplaza la versión anterior. No envíes información confidencial, datos personales ni material sin permiso. Comprueba las respuestas contra las fuentes: RAG puede equivocarse. La eliminación del índice puede tener consistencia eventual y tardar en reflejarse. Las respuestas sin una cita explícita verificable no se presentan como fuente.
 
-Publica solamente el código; confirma `.gitignore`. **NO publiques este proyecto en Vercel sin adaptaciones de seguridad.** OAuth Desktop, `token.json`, `manifest.json`, la ausencia de sesiones de usuario y el endpoint de preguntas no son adecuados para Internet abierto. Para producción, investiga OAuth tipo **Web application**, redirecciones autorizadas, sesiones, almacenamiento persistente de tokens, control de acceso documental por usuario, protección del endpoint `/api/ask`, persistencia compartida del índice y cuotas. Los archivos locales de una función serverless pueden ser efímeros. Las variables de entorno deben configurarse en la plataforma, nunca en el frontend.
-
-## 9. Costos y privacidad
-
-OpenAI cobra por el uso de modelos, búsqueda y almacenamiento según su tarifario vigente. No subas a OpenAI documentos confidenciales, datos personales o material sin permiso del propietario. El material descargado se transmite a OpenAI para indexación. Revoca y rota cualquier credencial filtrada, incluso si ya fue borrada de GitHub.
-
-## Acceso persistente y sincronizacion desde Vercel
-
-La aplicacion recuerda el inicio de sesion durante 30 dias en el navegador. Configura `LOCAL_ADMIN_KEY` y un valor aleatorio largo para `SESSION_SECRET` en las variables de entorno del despliegue. La clave se introduce al iniciar sesion y el servidor la guarda en una cookie firmada y `HttpOnly`; no la pongas en JavaScript.
-
-Para sincronizar desde Vercel:
-
-1. Crea una cuenta de servicio en Google Cloud y habilita Drive API. Comparte cada carpeta que quieras indexar con el correo de esa cuenta, con permiso de lector.
-2. Guarda el JSON de la cuenta de servicio como variable `GOOGLE_SERVICE_ACCOUNT_JSON` en Vercel. No agregues ese archivo al repositorio.
-3. Crea una base de datos Redis compatible con REST en Upstash y configura `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Vercel. Se usa para mantener el manifiesto entre ejecuciones serverless.
-4. Conserva `OPENAI_API_KEY` y `VECTOR_STORE_ID` configurados en Vercel. Despues de desplegar estos cambios, inicia sesion, pega el ID o enlace de la carpeta en la interfaz y pulsa **Sincronizar carpeta**.
-
-Si cambias de carpeta, la aplicacion sincroniza esa carpeta y retira del Vector Store los documentos de la anterior cuando la nueva sincronizacion termina sin errores. La cuenta de servicio debe tener acceso a la carpeta elegida. Las credenciales son variables secretas: configuralas en el panel de Vercel y no las envies en el chat ni las publiques en GitHub.
+La cuenta de servicio puede leer únicamente las carpetas que se compartan con ella, pero todas las personas que tengan la clave administrativa comparten el mismo acceso. Para un servicio con usuarios distintos se necesitarían autenticación individual y permisos por usuario. Rota o revoca cualquier credencial que se haya publicado o compartido accidentalmente, aunque luego se haya borrado del repositorio.
 
 ## Entrega
 
-Repositorio GitHub con historia de commits, URL de Vercel si culminas el reto (o documentación del bloqueo), y conclusiones sobre OAuth, Google Drive API, RAG, File Search, FastAPI, OOP, Git/GitHub y seguridad.
+Repositorio GitHub con historia de commits, URL de Vercel si se completa el reto y conclusiones sobre OAuth, Google Drive API, RAG, File Search, FastAPI, orientación a objetos, Git/GitHub y seguridad.

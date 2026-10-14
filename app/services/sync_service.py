@@ -183,8 +183,9 @@ class SyncService:
                     stats["removed"] += 1
                 except Exception as exc:
                     stats["errors"].append({"file": drive_id, "error": str(exc)})
-            manifest["active_folder_id"] = folder_id
-            self.save_manifest(manifest)
+            if not (switched_folder and stats["errors"]):
+                manifest["active_folder_id"] = folder_id
+                self.save_manifest(manifest)
             return {"vector_store_id": store, "folder_id": folder_id, "stats": stats, "documents": list(docs.values())}
         finally:
             _LOCK.release()
