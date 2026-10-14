@@ -1,4 +1,3 @@
-
 import { ApiClient } from './api.js';
 
 const api = new ApiClient();
@@ -6,195 +5,155 @@ const el = id => document.getElementById(id);
 
 const msg = (text, danger = false) => {
     el('message').textContent = text;
-    el('message').className =
-        'small mt-3 ' + (danger ? 'text-danger' : 'text-secondary');
+    el('message').className = 'small mt-3 ' + (danger ? 'text-danger' : 'text-secondary');
 };
+
+function showAuthenticated(authenticated) {
+    el('login-panel').classList.toggle('d-none', authenticated);
+    el('agent-app').classList.toggle('d-none', !authenticated);
+    el('logout').classList.toggle('d-none', !authenticated);
+}
 
 function linkFor(source) {
     if (!source.url) return null;
-
     try {
-        const u = new URL(source.url);
-
-        if (
-            u.protocol === 'https:' &&
-            ['drive.google.com', 'docs.google.com'].includes(u.hostname)
-        ) {
-            return u.href;
+        const url = new URL(source.url);
+        if (url.protocol === 'https:' && ['drive.google.com', 'docs.google.com'].includes(url.hostname)) {
+            return url.href;
         }
     } catch (_) {}
-
     return null;
 }
 
 async function loadDocuments() {
-    const r = await api.documents();
-
-    el('doc-count').textContent = r.indexed;
+    const result = await api.documents();
+    el('doc-count').textContent = result.indexed;
+    if (result.active_folder_id && !el('folder-id').value) {
+        el('folder-id').value = result.active_folder_id;
+    }
 
     const box = el('documents');
     box.replaceChildren();
-
-    if (!r.documents.length) {
-        box.textContent = 'Aún no hay documentos indexados.';
+    if (!result.documents.length) {
+        box.textContent = 'Aun no hay documentos indexados.';
         return;
     }
-
-    for (const d of r.documents) {
+    for (const item of result.documents) {
         const div = document.createElement('div');
         div.className = 'doc-item';
-
-        const a = document.createElement('a');
-        a.textContent = d.name;
-
-        const href = linkFor(d);
-
+        const anchor = document.createElement('a');
+        anchor.textContent = item.name;
+        const href = linkFor(item);
         if (href) {
-            a.href = href;
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
-        } else {
-            a.removeAttribute('href');
+            anchor.href = href;
+            anchor.target = '_blank';
+            anchor.rel = 'noopener noreferrer';
         }
-
-        div.append(a);
+        div.append(anchor);
         box.append(div);
     }
 }
 
-async function ask() {
-    const q = el('question').value.trim();
+function handleAuthError(error) {
+    if (error.status === 401) {
+        showAuthenticated(false);
+        el('admin-key').focus();
+        el('login-message').textContent = 'La sesion termino. Inicia sesion de nuevo.';
+        el('login-message').className = 'small mt-2 text-secondary';
+        return true;
+    }
+    return false;
+}
 
-    if (q.length < 3) {
+async function ask() {
+    const question = el('question').value.trim();
+    if (question.length < 3) {
         msg('Escribe una pregunta de al menos 3 caracteres.', true);
         return;
     }
-
     el('ask').disabled = true;
-    msg('Consultando al agente…');
-
+    msg('Consultando al agente...');
     try {
-        const data = await api.ask(q, el('use-search').checked);
-
+        const data = await api.ask(question, el('use-search').checked);
         el('answer').textContent = data.answer || 'Sin respuesta.';
-
-        const src = el('sources');
-        src.replaceChildren();
-
+        const sources = el('sources');
+        sources.replaceChildren();
         for (const source of data.sources) {
             const li = document.createElement('li');
             li.className = 'list-group-item px-0';
-
             const href = linkFor(source);
-
             if (href) {
-                const a = document.createElement('a');
-                a.href = href;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.textContent = source.name;
-                li.append(a);
+                const anchor = document.createElement('a');
+                anchor.href = href;
+                anchor.target = '_blank';
+                anchor.rel = 'noopener noreferrer';
+                anchor.textContent = source.name;
+                li.append(anchor);
             } else {
                 li.textContent = source.name;
             }
-
-            src.append(li);
+            sources.append(li);
         }
-
         if (!data.sources.length) {
             const li = document.createElement('li');
             li.className = 'list-group-item px-0 text-secondary';
-            li.textContent =
-                'No se recibieron citas verificables para esta respuesta.';
-            src.append(li);
+            li.textContent = 'No se recibieron citas verificables para esta respuesta.';
+            sources.append(li);
         }
-
         msg('Consulta finalizada.');
-    } catch (e) {
-        msg(e.message, true);
+    } catch (error) {
+        if (!handleAuthError(error)) msg(error.message, true);
     } finally {
         el('ask').disabled = false;
     }
 }
 
 async function sync() {
-    if (!confirm('¿Sincronizar archivos de la carpeta autorizada de Google Drive?')) {
+    const folderId = el('folder-id').value.trim();
+    if (!folderId) {
+        msg('Pega el ID o enlace de la carpeta que quieres sincronizar.', true);
+        el('folder-id').focus();
         return;
     }
+    if (!confirm('La sincronizacion reemplaza el indice de la carpeta anterior si eliges otra. Continuar?')) return;
 
     el('sync').disabled = true;
-    msg('Sincronizando documentos…');
-
+    msg('Sincronizando carpeta...');
     try {
-        const r = await api.sync();
+        const result = await api.sync(folderId);
         await loadDocuments();
-
         msg(
-            `Sincronización: ${r.stats.added} nuevos, ` +
-            `${r.stats.updated} actualizados, ` +
-            `${r.stats.removed} eliminados, ` +
-            `${r.stats.unchanged} sin cambios. ` +
-            `Errores: ${r.stats.errors.length}.`
+            `Sincronizacion: ${result.stats.added} nuevos, ${result.stats.updated} actualizados, ` +
+            `${result.stats.removed} eliminados, ${result.stats.unchanged} sin cambios. ` +
+            `Errores: ${result.stats.errors.length}.`
         );
-    } catch (e) {
-        msg(e.message, true);
+    } catch (error) {
+        if (!handleAuthError(error)) msg(error.message, true);
     } finally {
         el('sync').disabled = false;
     }
 }
 
-// Ocultar sincronización en el despliegue público de Vercel.
-const isProductionDeployment =
-    window.location.hostname === 'agente-documental-tic.vercel.app';
-
-if (isProductionDeployment) {
-    el('sync').classList.add('d-none');
-}
-
 el('ask').addEventListener('click', ask);
 el('sync').addEventListener('click', sync);
-
-el('question').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        ask();
-    }
+el('question').addEventListener('keydown', event => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) ask();
 });
 
-api.health()
-    .then(r => {
-        el('health').textContent = r.configured
-            ? 'Servidor listo'
-            : 'Configuración pendiente';
-    })
-    .catch(() => {
-        el('health').textContent = 'Sin conexión';
-    });
-
-loadDocuments().catch(e => msg(e.message, true));
-
-// Inicio de sesión mediante cookie HttpOnly gestionada por el servidor.
-const loginForm = el('login-form');
-
-loginForm.addEventListener('submit', async event => {
+el('login-form').addEventListener('submit', async event => {
     event.preventDefault();
-
-    const input = el('admin-key');
     const button = el('login-button');
     const message = el('login-message');
-    const key = input.value;
-
     button.disabled = true;
-    message.textContent = 'Verificando acceso…';
+    message.textContent = 'Verificando acceso...';
     message.className = 'small mt-2 text-secondary';
-
     try {
-        await api.login(key);
-
-        input.value = '';
-        el('login-panel').classList.add('d-none');
+        await api.login(el('admin-key').value);
+        el('admin-key').value = '';
         message.textContent = '';
-
-        msg('Sesión iniciada correctamente.');
+        showAuthenticated(true);
+        await loadDocuments();
+        msg('Sesion iniciada. Este navegador la recordara durante 30 dias.');
     } catch (error) {
         message.textContent = error.message;
         message.className = 'small mt-2 text-danger';
@@ -202,3 +161,27 @@ loginForm.addEventListener('submit', async event => {
         button.disabled = false;
     }
 });
+
+el('logout').addEventListener('click', async () => {
+    await api.logout();
+    showAuthenticated(false);
+    el('login-message').textContent = 'Sesion cerrada.';
+    el('login-message').className = 'small mt-2 text-secondary';
+});
+
+api.health().then(result => {
+    el('health').textContent = result.configured ? 'Servidor listo' : 'Configuracion pendiente';
+}).catch(() => {
+    el('health').textContent = 'Sin conexion';
+});
+
+api.session().then(async result => {
+    showAuthenticated(result.authenticated);
+    if (result.authenticated) {
+        try {
+            await loadDocuments();
+        } catch (error) {
+            if (!handleAuthError(error)) msg(error.message, true);
+        }
+    }
+}).catch(() => showAuthenticated(false));

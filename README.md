@@ -98,6 +98,19 @@ Publica solamente el código; confirma `.gitignore`. **NO publiques este proyect
 
 OpenAI cobra por el uso de modelos, búsqueda y almacenamiento según su tarifario vigente. No subas a OpenAI documentos confidenciales, datos personales o material sin permiso del propietario. El material descargado se transmite a OpenAI para indexación. Revoca y rota cualquier credencial filtrada, incluso si ya fue borrada de GitHub.
 
+## Acceso persistente y sincronizacion desde Vercel
+
+La aplicacion recuerda el inicio de sesion durante 30 dias en el navegador. Configura `LOCAL_ADMIN_KEY` y un valor aleatorio largo para `SESSION_SECRET` en las variables de entorno del despliegue. La clave se introduce al iniciar sesion y el servidor la guarda en una cookie firmada y `HttpOnly`; no la pongas en JavaScript.
+
+Para sincronizar desde Vercel:
+
+1. Crea una cuenta de servicio en Google Cloud y habilita Drive API. Comparte cada carpeta que quieras indexar con el correo de esa cuenta, con permiso de lector.
+2. Guarda el JSON de la cuenta de servicio como variable `GOOGLE_SERVICE_ACCOUNT_JSON` en Vercel. No agregues ese archivo al repositorio.
+3. Crea una base de datos Redis compatible con REST en Upstash y configura `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Vercel. Se usa para mantener el manifiesto entre ejecuciones serverless.
+4. Conserva `OPENAI_API_KEY` y `VECTOR_STORE_ID` configurados en Vercel. Despues de desplegar estos cambios, inicia sesion, pega el ID o enlace de la carpeta en la interfaz y pulsa **Sincronizar carpeta**.
+
+Si cambias de carpeta, la aplicacion sincroniza esa carpeta y retira del Vector Store los documentos de la anterior cuando la nueva sincronizacion termina sin errores. La cuenta de servicio debe tener acceso a la carpeta elegida. Las credenciales son variables secretas: configuralas en el panel de Vercel y no las envies en el chat ni las publiques en GitHub.
+
 ## Entrega
 
 Repositorio GitHub con historia de commits, URL de Vercel si culminas el reto (o documentación del bloqueo), y conclusiones sobre OAuth, Google Drive API, RAG, File Search, FastAPI, OOP, Git/GitHub y seguridad.

@@ -10,11 +10,13 @@ export class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         typeof data.detail === 'string'
           ? data.detail
           : `HTTP ${response.status}`
       );
+      error.status = response.status;
+      throw error;
     }
 
     return data;
@@ -22,6 +24,14 @@ export class ApiClient {
 
   health() {
     return this.request('/api/health');
+  }
+
+  session() {
+    return this.request('/api/session');
+  }
+
+  logout() {
+    return this.request('/api/logout', { method: 'POST' });
   }
 
   documents() {
@@ -47,7 +57,11 @@ export class ApiClient {
     });
   }
 
-  sync() {
-    return this.request('/api/sync', { method: 'POST' });
+  sync(folderId) {
+    return this.request('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder_id: folderId })
+    });
   }
 }

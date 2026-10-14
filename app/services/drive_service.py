@@ -1,8 +1,11 @@
 """Drive con OAuth local: un usuario, una carpeta, solo lectura."""
+import json
+import os
 from pathlib import Path
 from io import BytesIO
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -15,20 +18,33 @@ class DriveService:
         token = ROOT / "token.json"
         credentials_file = ROOT / "credentials.json"
         creds = None
-        if token.exists():
-            creds = Credentials.from_authorized_user_file(str(token), SCOPES)
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        if not creds or not creds.valid:
-            if not credentials_file.exists():
-                raise RuntimeError("Falta credentials.json. Configura OAuth Desktop en Google Cloud.")
-            flow = InstalledAppFlow.from_client_secrets_file(str(credentials_file), SCOPES)
-            creds = flow.run_local_server(port=0, open_browser=True)
-        token.write_text(creds.to_json(), encoding="utf-8")
+        service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+        if service_account_json:
+            try:
+                info = json.loads(service_account_json)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON no contiene JSON válido.") from exc
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=SCOPES
+            )
+        if not service_account_json:
+            if token.exists():
+                creds = Credentials.from_authorized_user_file(str(token), SCOPES)
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            if not creds or not creds.valid:
+                if not credentials_file.exists():
+                    raise RuntimeError("Falta credentials.json. Configura OAuth Desktop en Google Cloud.")
+                flow = InstalledAppFlow.from_client_secrets_file(str(credentials_file), SCOPES)
+                creds = flow.run_local_server(port=0, open_browser=True)
+        # Service-account keys are supplied by the deployment environment and
+        # must never be copied into the local OAuth token file.
+        if not service_account_json:
+            token.write_text(creds.to_json(), encoding="utf-8")
         self.service = build("drive", "v3", credentials=creds, cache_discovery=False)
 
     def list_files(self, folder_id: str) -> list[dict]:
-        if not folder_id: raise ValueError("Configura GOOGLE_DRIVE_FOLDER_ID en .env")
+        if not folder_id: raise ValueError("Pega el ID de una carpeta de Google Drive.")
         files, page = [], None
         query = "'" + folder_id + "' in parents and trashed = false"
         while True:

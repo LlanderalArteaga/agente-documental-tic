@@ -1,62 +1,84 @@
-"""Aplicación académica LOCAL. No desplegar públicamente sin autenticación de usuarios."""
+"""Aplicación del agente documental."""
 from pathlib import Path
-from ipaddress import ip_address
-from fastapi import FastAPI, HTTPException, Request, Depends
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-from app.core.config import settings
-from app.models.documento import AskRequest, AskResponse, LoginRequest
-from app.services.sync_service import SyncService
-from app.services.agent_service import AgentService
-import os
 import hmac
-import secrets
-from fastapi.responses import JSONResponse
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+import os
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+
+from app.core.config import settings
+from app.models.documento import AskRequest, AskResponse, LoginRequest, SyncRequest
+from app.services.agent_service import AgentService
+from app.services.sync_service import SyncService
+
 
 ROOT = Path(__file__).resolve().parents[1]
+SESSION_COOKIE = "tic_session"
+SESSION_MAX_AGE = 30 * 24 * 60 * 60
+
 app = FastAPI(title="Archivo TIC IA", version="1.0.0")
 app.mount("/assets", StaticFiles(directory=ROOT / "assets"), name="assets")
 
-def local_only(request: Request):
-    """Defensa básica para el laboratorio; no equivale a autenticación pública."""
-    host = request.client.host if request.client else ""
+
+def get_session_serializer():
+    secret = os.getenv("SESSION_SECRET", "")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Falta configurar SESSION_SECRET.")
+    return URLSafeTimedSerializer(secret, salt="archivo-tic-session")
+
+
+def require_api_key(request: Request):
+    if not settings.local_admin_key:
+        raise HTTPException(status_code=503, detail="Falta configurar LOCAL_ADMIN_KEY.")
+    token = request.cookies.get(SESSION_COOKIE, "")
     try:
-        if not ip_address(host).is_loopback: raise ValueError()
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Sincronización disponible solo desde localhost")
-    key = settings.local_admin_key
-    if key and request.headers.get("X-Admin-Key") != key:
-        raise HTTPException(status_code=401, detail="Clave administrativa incorrecta")
+        session = get_session_serializer().loads(token, max_age=SESSION_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        raise HTTPException(status_code=401, detail="Inicia sesión para usar el agente.")
+    if session.get("authenticated") is not True:
+        raise HTTPException(status_code=401, detail="Sesión no válida.")
+
 
 @app.get("/")
 def index():
     return FileResponse(ROOT / "index.html")
 
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "configured": bool(settings.openai_api_key and settings.drive_folder_id)}
+    return {
+        "status": "ok",
+        "configured": bool(
+            settings.openai_api_key
+            and settings.local_admin_key
+            and os.getenv("SESSION_SECRET")
+        ),
+    }
+
+
+@app.get("/api/session")
+def session_status(request: Request):
+    token = request.cookies.get(SESSION_COOKIE, "")
+    if not token or not settings.local_admin_key or not os.getenv("SESSION_SECRET"):
+        return {"authenticated": False}
+    try:
+        session = get_session_serializer().loads(token, max_age=SESSION_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return {"authenticated": False}
+    return {"authenticated": session.get("authenticated") is True}
 
 
 @app.post("/api/login")
 def login(payload: LoginRequest):
     expected_key = settings.local_admin_key
-
     if not expected_key:
-        raise HTTPException(
-            status_code=503,
-            detail="Falta configurar LOCAL_ADMIN_KEY."
-        )
-
+        raise HTTPException(status_code=503, detail="Falta configurar LOCAL_ADMIN_KEY.")
     if not hmac.compare_digest(payload.key, expected_key):
-        raise HTTPException(
-            status_code=401,
-            detail="Clave incorrecta."
-        )
+        raise HTTPException(status_code=401, detail="Clave incorrecta.")
 
-    serializer = get_session_serializer()
-    token = serializer.dumps({"authenticated": True})
-
+    token = get_session_serializer().dumps({"authenticated": True})
     response = JSONResponse({"success": True})
     response.set_cookie(
         key=SESSION_COOKIE,
@@ -65,89 +87,58 @@ def login(payload: LoginRequest):
         secure=bool(os.getenv("VERCEL")),
         samesite="strict",
         max_age=SESSION_MAX_AGE,
-        path="/"
+        path="/",
     )
     return response
 
 
-@app.get("/api/documents")
+@app.post("/api/logout")
+def logout():
+    response = JSONResponse({"success": True})
+    response.delete_cookie(SESSION_COOKIE, path="/", samesite="strict")
+    return response
+
+
+@app.get("/api/documents", dependencies=[Depends(require_api_key)])
 def documents():
-    import json
-
-    public_manifest = ROOT / "data" / "manifest.public.json"
-
-    if public_manifest.exists():
-        with public_manifest.open("r", encoding="utf-8") as f:
-            doc = json.load(f)
-        documents_list = doc.get("documents", [])
-    else:
-        doc = SyncService.load_manifest()
-        documents_list = list(doc.get("documents", {}).values())
-
-    local_manifest = SyncService.load_manifest()
-
+    manifest = SyncService.load_manifest()
+    indexed = manifest.get("documents", {})
+    documents_list = list(indexed.values()) if isinstance(indexed, dict) else indexed
     return {
         "documents": documents_list,
         "indexed": len(documents_list),
+        "active_folder_id": manifest.get("active_folder_id") or settings.drive_folder_id,
         "vector_store_configured": bool(
-            settings.vector_store_id or local_manifest.get("vector_store_id")
-        )
+            settings.vector_store_id or manifest.get("vector_store_id")
+        ),
     }
-
-
-SESSION_COOKIE = "tic_session"
-SESSION_MAX_AGE = 3600
-
-def get_session_serializer():
-    secret = os.getenv("SESSION_SECRET", "")
-    if not secret:
-        raise HTTPException(
-            status_code=503,
-            detail="Falta configurar SESSION_SECRET."
-        )
-    return URLSafeTimedSerializer(secret, salt="archivo-tic-session")
-
-def require_api_key(request: Request):
-    if not settings.local_admin_key:
-        raise HTTPException(
-            status_code=503,
-            detail="Falta configurar LOCAL_ADMIN_KEY."
-        )
-
-    serializer = get_session_serializer()
-    token = request.cookies.get(SESSION_COOKIE, "")
-
-    try:
-        session = serializer.loads(token, max_age=SESSION_MAX_AGE)
-    except (BadSignature, SignatureExpired):
-        raise HTTPException(
-            status_code=401,
-            detail="Inicia sesión para consultar el agente."
-        )
-
-    if session.get("authenticated") is not True:
-        raise HTTPException(status_code=401, detail="Sesión no válida.")
 
 
 @app.post(
     "/api/ask",
     response_model=AskResponse,
-    dependencies=[Depends(require_api_key)]
+    dependencies=[Depends(require_api_key)],
 )
 def ask(payload: AskRequest):
     try:
-        if not settings.openai_api_key: raise ValueError("Falta OPENAI_API_KEY")
+        if not settings.openai_api_key:
+            raise ValueError("Falta OPENAI_API_KEY")
         return AgentService().ask(payload.question, payload.use_search)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
-        raise HTTPException(status_code=502, detail="Error al consultar OpenAI. Revisa el registro local.")
+        raise HTTPException(
+            status_code=502,
+            detail="Error al consultar OpenAI. Revisa el registro del servidor.",
+        )
 
-@app.post("/api/sync", dependencies=[Depends(local_only)])
-def sync():
+
+@app.post("/api/sync", dependencies=[Depends(require_api_key)])
+def sync(payload: SyncRequest):
     try:
-        if not settings.openai_api_key: raise ValueError("Falta OPENAI_API_KEY")
-        return SyncService().sync()
+        if not settings.openai_api_key:
+            raise ValueError("Falta OPENAI_API_KEY")
+        return SyncService().sync(payload.folder_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:

@@ -15,3 +15,6 @@ class AskResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     key: str = Field(min_length=1, max_length=256)
+
+class SyncRequest(BaseModel):
+    folder_id: str | None = Field(default=None, min_length=5, max_length=512)
