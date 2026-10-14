@@ -60,12 +60,22 @@ def documents():
 
 
 def require_api_key(request: Request):
-    if os.getenv("VERCEL"):
+    expected_key = settings.local_admin_key
+
+    if not expected_key:
         raise HTTPException(
             status_code=503,
-            detail="Consultas deshabilitadas hasta configurar autenticación."
+            detail="Falta configurar LOCAL_ADMIN_KEY."
         )
 
+    provided_key = request.headers.get("X-Admin-Key", "")
+
+    import hmac
+    if not hmac.compare_digest(provided_key, expected_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Clave de acceso incorrecta o no proporcionada."
+        )
 
 
 @app.post(

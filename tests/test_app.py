@@ -1,5 +1,8 @@
 from fastapi.testclient import TestClient
 from app.main import app
+from app.core.config import settings
+from types import SimpleNamespace
+import app.main as main_module
 
 client = TestClient(app)
 
@@ -16,11 +19,31 @@ def test_documents():
     assert r.status_code == 200
     assert isinstance(r.json()["documents"], list)
 
-def test_question_validation():
-    r = client.post("/api/ask", json={"question": "a"})
+
+def test_question_validation(monkeypatch):
+    import app.main as main_module
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        main_module,
+        "settings",
+        SimpleNamespace(local_admin_key="clave-de-prueba")
+    )
+
+    r = client.post(
+        "/api/ask",
+        json={"question": "a"},
+        headers={"X-Admin-Key": "clave-de-prueba"}
+    )
+
     assert r.status_code == 422
+
 
 def test_sync_not_public():
     # FastAPI TestClient IP ficticia no loopback: bloqueado por diseño.
     r = client.post("/api/sync")
     assert r.status_code == 403
+
+def test_auth_requires_key():
+    r = client.post("/api/ask", json={"question": "Pregunta válida"})
+    assert r.status_code in (401, 503)
