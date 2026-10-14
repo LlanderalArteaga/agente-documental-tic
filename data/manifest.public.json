@@ -1,27 +1,34 @@
+
 {
   "documents": [
     {
       "name": "1. Sensor Ultrasónico (HC-SR04).txt",
+      "openai_file_id": "file-RbuAriTmniUDyPHHD3B872",
       "url": "https://drive.google.com/file/d/1iMkLhyco_v68PVY5tGOibWA5Ti5mPhcA/view?usp=drivesdk"
     },
     {
       "name": "2.2 Delitos informáticos A-D 2025.pdf",
+      "openai_file_id": "file-EJxNFioNGro491o7uxxQkJ",
       "url": "https://drive.google.com/file/d/1gevFYwNPKdgOA6oC5oKKkmpzRx67JFic/view?usp=drivesdk"
     },
     {
       "name": "Contraseñas.txt",
+      "openai_file_id": "file-G19FKAwKWnNamz2e9y5eFK",
       "url": "https://drive.google.com/file/d/1wzhYHKT3LaEP2zDzK3EzxorlyAdAiHyq/view?usp=drivesdk"
     },
     {
       "name": "Instrucciones_carro.txt",
+      "openai_file_id": "file-De9jcEPRmNet7yGycBNQKy",
       "url": "https://drive.google.com/file/d/1_3iEZHR0TwnZQzZgPaFO7_SQ2R8KXV3t/view?usp=drivesdk"
     },
     {
       "name": "Listas de propuestas técnicas.txt",
+      "openai_file_id": "file-LjqQibQUC4CsA35KuFgcLZ",
       "url": "https://drive.google.com/file/d/1c5BVIK1FKsGsB5DPsBlJiZvXW9go4ZA-/view?usp=drivesdk"
     },
     {
       "name": "prueba_sincronizacion.txt",
+      "openai_file_id": "file-ToYodquSmDMU6N6noeW34g",
       "url": "https://drive.google.com/file/d/1gwC88N4YaNRUZFBQkNubVIFImpPKlWr8/view?usp=drivesdk"
     }
   ]
