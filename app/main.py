@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.models.documento import AskRequest, AskResponse
 from app.services.sync_service import SyncService
 from app.services.agent_service import AgentService
+import os
 
 ROOT = Path(__file__).resolve().parents[1]
 app = FastAPI(title="Archivo TIC IA", version="1.0.0")
@@ -39,7 +40,23 @@ def documents():
             "indexed": len(doc.get("documents", {})),
             "vector_store_configured": bool(settings.vector_store_id or doc.get("vector_store_id"))}
 
-@app.post("/api/ask", response_model=AskResponse)
+
+
+
+def require_api_key(request: Request):
+    if os.getenv("VERCEL"):
+        raise HTTPException(
+            status_code=503,
+            detail="Consultas deshabilitadas hasta configurar autenticación."
+        )
+
+
+
+@app.post(
+    "/api/ask",
+    response_model=AskResponse,
+    dependencies=[Depends(require_api_key)]
+)
 def ask(payload: AskRequest):
     try:
         if not settings.openai_api_key: raise ValueError("Falta OPENAI_API_KEY")
