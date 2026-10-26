@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f4f3ed">
+    <meta name="theme-color" content="#102b3b">
     <meta name="description" content="Agente de consulta documental conectado con Google Drive.">
     <title>Archivo TIC | Asistente documental</title>
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
@@ -12,54 +12,69 @@
 </head>
 <body>
     <header class="topbar">
-        <div class="brand-lockup">
-            <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-            <div><strong>archivo<span class="brand-accent">.</span></strong><small>TIC · ASISTENTE</small></div>
+        <a class="brand" href="/" aria-label="Archivo TIC, inicio">
+            <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span class="brand-name">Archivo <b>TIC</b><small>ASISTENTE DOCUMENTAL</small></span>
+        </a>
+        <div class="topbar-right">
+            <span class="project-tag">PRÁCTICA 2.3 <i>·</i> INTELIGENCIA ARTIFICIAL</span>
+            <span class="server-status"><span class="status-dot"></span><span id="health">Conectando</span></span>
         </div>
-        <div class="top-meta"><span class="live-dot"></span><span id="health">Conectando</span><span class="top-divider"></span><span>Práctica 2.3</span></div>
     </header>
-    <main class="workspace">
-        <aside class="library-panel">
-            <div class="section-kicker">TU ESPACIO</div>
-            <div class="library-heading"><h1>Biblioteca</h1><span class="count-pill" id="doc-count">0</span></div>
-            <p class="muted-copy">Documentos disponibles para consultar.</p>
-            <div class="doc-list" id="documents" aria-live="polite">Cargando documentos…</div>
-            <div class="folder-box">
-                <label for="folder-id" class="section-kicker">CARPETA DE GOOGLE DRIVE</label>
-                <input class="form-control" type="text" id="folder-id" maxlength="512" placeholder="Pega el ID o enlace">
-                <button type="button" id="sync" class="btn sync-button"><span aria-hidden="true">↻</span> Sincronizar carpeta</button>
-                <p class="helper-copy">La cuenta configurada en el servidor necesita acceso a esta carpeta.</p>
-            </div>
-            <div class="library-foot"><span class="drive-glyph">▣</span> Conectado a Google Drive</div>
-        </aside>
 
+    <main class="app-layout">
         <section class="conversation" aria-label="Consulta documental">
-            <div class="conversation-head">
-                <div><div class="section-kicker">CONSULTA INTELIGENTE</div><h2>Pregunta a tus documentos</h2></div>
-                <div class="rag-chip"><span></span> Búsqueda RAG</div>
+            <div class="page-intro">
+                <div class="eyebrow"><span class="eyebrow-line"></span> TU ARCHIVO, AL DÍA</div>
+                <h1>¿Qué necesitas <span>encontrar?</span></h1>
+                <p>Pregunta en lenguaje natural. El asistente buscará respuestas en los documentos de tu biblioteca.</p>
             </div>
-            <div class="intro-card">
-                <div class="intro-icon" aria-hidden="true">✳</div>
-                <div><h3>Tu archivo, en conversación.</h3><p>Haz una pregunta y encontraré la información relevante en los documentos de tu biblioteca.</p></div>
+
+            <div class="composer" id="composer">
+                <label for="question">ESCRIBE TU PREGUNTA</label>
+                <textarea id="question" rows="3" maxlength="3000" placeholder="Por ejemplo: ¿Qué documentos explican Amazon RDS y sus conexiones?" required></textarea>
+                <div class="composer-footer">
+                    <label class="search-toggle" for="use-search">
+                        <input id="use-search" type="checkbox" checked>
+                        <span class="switch-track" aria-hidden="true"></span>
+                        <span>Buscar en mis documentos</span>
+                    </label>
+                    <div class="composer-actions">
+                        <span class="keyboard-hint">Ctrl + Enter</span>
+                        <button class="ask-button" type="button" id="ask">Consultar <span aria-hidden="true">↗</span></button>
+                    </div>
+                </div>
             </div>
-            <section class="answer-card" aria-label="Respuesta del agente">
-                <div class="answer-label"><span class="answer-spark">✳</span> RESPUESTA DEL ARCHIVO</div>
-                <div id="answer" class="answer" aria-live="polite">Escribe una pregunta para comenzar.</div>
+
+            <section class="answer-panel" aria-label="Respuesta del agente">
+                <div class="answer-header">
+                    <div class="answer-heading"><span class="answer-icon" aria-hidden="true">✳</span><div><h2>Respuesta</h2><p>Información recuperada de tu biblioteca</p></div></div>
+                    <span class="ai-tag">ASISTENTE IA</span>
+                </div>
+                <div id="answer" class="answer" aria-live="polite">Tu respuesta aparecerá aquí cuando hagas una pregunta.</div>
                 <div id="message" role="status" class="status-message" aria-live="polite"></div>
                 <div class="sources-wrap"><h3>Fuentes consultadas</h3><ul id="sources" class="list-group list-group-flush"></ul></div>
             </section>
-            <div class="composer-wrap">
-                <label class="visually-hidden" for="question">Tu pregunta</label>
-                <textarea class="form-control" id="question" rows="3" maxlength="3000" placeholder="Pregunta algo sobre tus documentos…" required></textarea>
-                <div class="composer-tools">
-                    <label class="search-toggle" for="use-search"><input id="use-search" type="checkbox" checked><span class="toggle-track"></span> Buscar en mis documentos</label>
-                    <span class="composer-hint">Ctrl + Enter para enviar</span>
-                    <button class="btn ask-button" type="button" id="ask">Preguntar <span aria-hidden="true">↗</span></button>
-                </div>
-            </div>
-            <footer class="conversation-foot">Las respuestas se basan en los archivos indexados en tu biblioteca.</footer>
+            <footer class="page-foot">Archivo TIC · Respuestas basadas en los documentos indexados</footer>
         </section>
+
+        <aside class="library-panel" aria-label="Biblioteca documental">
+            <div class="library-topline"><span class="library-icon" aria-hidden="true">▤</span><span class="eyebrow">FUENTES</span></div>
+            <div class="library-title-row"><div><h2>Biblioteca</h2><p>Tus documentos disponibles</p></div><span class="doc-count" id="doc-count">0</span></div>
+            <div class="doc-list" id="documents" aria-live="polite">Cargando documentos…</div>
+            <div class="library-empty-note"><span class="empty-dot"></span> El contenido se actualiza desde Drive</div>
+
+            <div class="folder-settings">
+                <div class="folder-heading"><span class="drive-icon" aria-hidden="true">G</span><div><h3>Carpeta de Drive</h3><p>Cambia la fuente documental</p></div></div>
+                <label for="folder-id" class="visually-hidden">ID o enlace de carpeta de Google Drive</label>
+                <input class="folder-input" type="text" id="folder-id" maxlength="512" placeholder="Pega el ID o enlace de la carpeta">
+                <button type="button" id="sync" class="sync-button"><span aria-hidden="true">↻</span> Actualizar documentos</button>
+                <p class="helper-copy">La cuenta configurada en el servidor debe tener acceso a la carpeta.</p>
+            </div>
+            <div class="library-footer"><span class="drive-status-dot"></span> Conexión con Google Drive</div>
+        </aside>
     </main>
+
     <script type="module" src="/assets/js/app.js"></script>
 </body>
 </html>
