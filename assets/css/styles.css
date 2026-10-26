@@ -155,7 +155,7 @@ body { background: var(--paper); color: var(--ink); }
 .eyebrow { color: #6ed0c2; }
 .composer,.answer-panel,.library-panel { border-color: #263c46; background: #12252e; box-shadow: 0 12px 32px rgba(0,0,0,.16); }
 .composer>label,.sources-wrap h3 { color: #91a5ac; }
-.composer textarea { color: #e1edef; }
+.composer textarea { background: transparent; color: #e1edef; color-scheme: dark; }
 .composer textarea::placeholder { color: #788d95; }
 .composer:focus-within { border-color: #4d9e99; box-shadow: 0 0 0 3px rgba(87,199,184,.08); }
 .composer-footer,.sources-wrap,.library-topline,.folder-settings,.library-footer { border-color: #263b44; }
@@ -184,7 +184,7 @@ body { background: var(--paper); color: var(--ink); }
 .suggestions { margin-top: 18px; padding-top: 15px; border-top: 1px solid #263b44; }
 .suggestions-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; color: #91a5ac; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
 .suggestions-heading span:last-child { color: #68c8ba; font-size: 14px; }
-.suggestion-list { display: grid; gap: 6px; }
+.suggestion-list { display: grid; max-height: 285px; gap: 6px; overflow-y: auto; padding-right: 3px; scrollbar-color: #36545d transparent; scrollbar-width: thin; }
 .suggestion-button { width: 100%; padding: 8px 10px; border: 1px solid #2a414a; border-radius: 7px; background: #162b34; color: #c5d5d8; font: 10px/1.45 var(--sans); text-align: left; overflow-wrap: anywhere; transition: border-color .15s, background .15s, color .15s; }
 .suggestion-button::after { float: right; margin-left: 5px; color: #61bfb3; content: '↗'; }
 .suggestion-button:hover { border-color: #4b8582; background: #1a383c; color: #e5f3f2; }
