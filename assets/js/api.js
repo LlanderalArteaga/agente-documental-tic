@@ -26,24 +26,8 @@ export class ApiClient {
     return this.request('/api/health');
   }
 
-  session() {
-    return this.request('/api/session');
-  }
-
-  logout() {
-    return this.request('/api/logout', { method: 'POST' });
-  }
-
   documents() {
     return this.request('/api/documents');
-  }
-
-  login(key) {
-    return this.request('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key })
-    });
   }
 
   ask(question, useSearch) {

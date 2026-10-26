@@ -5,14 +5,8 @@ const el = id => document.getElementById(id);
 
 const msg = (text, danger = false) => {
     el('message').textContent = text;
-    el('message').className = 'small mt-3 ' + (danger ? 'text-danger' : 'text-secondary');
+    el('message').className = 'status-message' + (danger ? ' text-danger' : '');
 };
-
-function showAuthenticated(authenticated) {
-    el('login-panel').classList.toggle('d-none', authenticated);
-    el('agent-app').classList.toggle('d-none', !authenticated);
-    el('logout').classList.toggle('d-none', !authenticated);
-}
 
 function linkFor(source) {
     if (!source.url) return null;
@@ -54,17 +48,6 @@ async function loadDocuments() {
     }
 }
 
-function handleAuthError(error) {
-    if (error.status === 401) {
-        showAuthenticated(false);
-        el('admin-key').focus();
-        el('login-message').textContent = 'La sesion termino. Inicia sesion de nuevo.';
-        el('login-message').className = 'small mt-2 text-secondary';
-        return true;
-    }
-    return false;
-}
-
 async function ask() {
     const question = el('question').value.trim();
     if (question.length < 3) {
@@ -102,7 +85,7 @@ async function ask() {
         }
         msg('Consulta finalizada.');
     } catch (error) {
-        if (!handleAuthError(error)) msg(error.message, true);
+        msg(error.message, true);
     } finally {
         el('ask').disabled = false;
     }
@@ -128,7 +111,7 @@ async function sync() {
             `Errores: ${result.stats.errors.length}.`
         );
     } catch (error) {
-        if (!handleAuthError(error)) msg(error.message, true);
+        msg(error.message, true);
     } finally {
         el('sync').disabled = false;
     }
@@ -140,48 +123,12 @@ el('question').addEventListener('keydown', event => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) ask();
 });
 
-el('login-form').addEventListener('submit', async event => {
-    event.preventDefault();
-    const button = el('login-button');
-    const message = el('login-message');
-    button.disabled = true;
-    message.textContent = 'Verificando acceso...';
-    message.className = 'small mt-2 text-secondary';
-    try {
-        await api.login(el('admin-key').value);
-        el('admin-key').value = '';
-        message.textContent = '';
-        showAuthenticated(true);
-        await loadDocuments();
-        msg('Sesion iniciada. Este navegador la recordara durante 30 dias.');
-    } catch (error) {
-        message.textContent = error.message;
-        message.className = 'small mt-2 text-danger';
-    } finally {
-        button.disabled = false;
-    }
-});
-
-el('logout').addEventListener('click', async () => {
-    await api.logout();
-    showAuthenticated(false);
-    el('login-message').textContent = 'Sesion cerrada.';
-    el('login-message').className = 'small mt-2 text-secondary';
-});
-
 api.health().then(result => {
-    el('health').textContent = result.configured ? 'Servidor listo' : 'Configuracion pendiente';
+    el('health').textContent = result.configured ? 'Agente disponible' : 'Falta configurar OpenAI';
 }).catch(() => {
-    el('health').textContent = 'Sin conexion';
+    el('health').textContent = 'Sin conexión';
 });
 
-api.session().then(async result => {
-    showAuthenticated(result.authenticated);
-    if (result.authenticated) {
-        try {
-            await loadDocuments();
-        } catch (error) {
-            if (!handleAuthError(error)) msg(error.message, true);
-        }
-    }
-}).catch(() => showAuthenticated(false));
+loadDocuments().catch(error => {
+    el('documents').textContent = error.message;
+});

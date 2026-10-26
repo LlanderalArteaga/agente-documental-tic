@@ -58,7 +58,7 @@ El proyecto muestra cómo consultar documentos propios y autorizados, y cómo se
 
 ## Arquitectura
 
-- `app/main.py`: aplicación FastAPI, interfaz y endpoints REST; protege consultas y sincronización con una sesión.
+- `app/main.py`: aplicación FastAPI, interfaz y endpoints REST de consulta documental.
 - `app/core/config.py`: lee la configuración del servidor desde variables de entorno y `.env` en ejecución local.
 - `app/models/documento.py`: valida las solicitudes y respuestas de la API.
 - `app/services/drive_service.py`: accede a Drive. En local usa OAuth Desktop; en Vercel usa una cuenta de servicio configurada en el servidor.
@@ -93,11 +93,9 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Edita `.env` en tu computadora. Configura `OPENAI_API_KEY`, `OPENAI_MODEL`, `LOCAL_ADMIN_KEY` y `SESSION_SECRET`. `GOOGLE_DRIVE_FOLDER_ID` es una carpeta inicial opcional; también puedes pegar otra desde la interfaz. Si ya tienes un Vector Store, conserva su `VECTOR_STORE_ID`; si se deja vacío, el sistema puede crear uno al sincronizar por primera vez.
+Edita `.env` en tu computadora. Configura `OPENAI_API_KEY` y `OPENAI_MODEL`. `GOOGLE_DRIVE_FOLDER_ID` es una carpeta inicial opcional; también puedes pegar otra desde la interfaz. Si ya tienes un Vector Store, conserva su `VECTOR_STORE_ID`; si se deja vacío, el sistema puede crear uno al sincronizar por primera vez.
 
-`SESSION_SECRET` debe ser un valor aleatorio y mantenerse estable mientras quieras conservar las sesiones. No uses la clave administrativa como `SESSION_SECRET`.
-
-## 4. Iniciar sesión y usar el agente
+## 4. Abrir y usar el agente
 
 Ejecuta el servidor local:
 
@@ -105,9 +103,7 @@ Ejecuta el servidor local:
 python app.py
 ```
 
-Abre <http://127.0.0.1:5000>. La primera vez, escribe el valor de `LOCAL_ADMIN_KEY`. El servidor crea una cookie firmada y `HttpOnly`; la página recuerda la sesión en ese navegador durante **30 días**, incluso al cerrar y volver a abrir la página. El servidor local escucha en `127.0.0.1`; no lo expongas en `0.0.0.0`.
-
-La sesión termina si pulsas **Cerrar sesión**, borras las cookies del sitio o pasan 30 días. Al volver a entrar, escribe otra vez `LOCAL_ADMIN_KEY`. Cada navegador mantiene su propia sesión. No guardes la clave en el navegador ni en el código JavaScript.
+Abre <http://127.0.0.1:5000>. El agente queda disponible directamente, sin una pantalla de acceso. El servidor local escucha en `127.0.0.1`; no lo expongas en `0.0.0.0`.
 
 ## 5. Elegir y sincronizar una carpeta de Drive
 
@@ -122,12 +118,9 @@ Para que la cuenta local de Google pueda leer otra carpeta, inicia sesión con u
 | Método | Ruta | Función |
 |---|---|---|
 | `GET` | `/api/health` | Indica si el servidor tiene su configuración básica. |
-| `GET` | `/api/session` | Comprueba si la cookie de sesión sigue vigente. |
-| `POST` | `/api/login` | Valida `LOCAL_ADMIN_KEY` y crea la cookie de sesión. |
-| `POST` | `/api/logout` | Cierra la sesión del navegador actual. |
-| `GET` | `/api/documents` | Devuelve los documentos indexados y la carpeta activa; requiere sesión. |
-| `POST` | `/api/sync` | Sincroniza la carpeta enviada en `folder_id`; requiere sesión. |
-| `POST` | `/api/ask` | Recibe `question` y `use_search`; requiere sesión. |
+| `GET` | `/api/documents` | Devuelve los documentos indexados y la carpeta activa. |
+| `POST` | `/api/sync` | Sincroniza la carpeta enviada en `folder_id`. |
+| `POST` | `/api/ask` | Recibe `question` y `use_search`. |
 
 Ejemplo de solicitud para `/api/ask`:
 
@@ -143,8 +136,6 @@ El código del proyecto no contiene secretos. Antes de desplegar, configura esta
 |---|---|
 | `OPENAI_API_KEY` | Clave privada de OpenAI. |
 | `OPENAI_MODEL` | Modelo compatible con File Search; si se omite, se usa el valor predeterminado del código. |
-| `LOCAL_ADMIN_KEY` | Clave que se escribe al iniciar sesión. Usa una nueva y privada. |
-| `SESSION_SECRET` | Secreto aleatorio para firmar las cookies. Mantén el mismo valor entre despliegues para conservar sesiones. |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Contenido JSON de la cuenta de servicio de Google. |
 | `UPSTASH_REDIS_REST_URL` | URL REST de la base de datos Upstash Redis. |
 | `UPSTASH_REDIS_REST_TOKEN` | Token privado de esa base de datos. |
@@ -157,8 +148,8 @@ Pasos para habilitar Drive y almacenamiento persistente:
 2. Comparte con el correo de esa cuenta las carpetas que quieras sincronizar y dale permiso de lector.
 3. Copia el JSON completo de la cuenta de servicio en `GOOGLE_SERVICE_ACCOUNT_JSON` en Vercel. No subas ese JSON al repositorio.
 4. Crea una base Redis en Upstash y copia su URL REST y token en `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN`.
-5. Agrega las variables de OpenAI y de sesión indicadas arriba. Si ya tienes documentos en un Vector Store, configura su ID para conservar esa base.
-6. Publica los cambios del código y espera a que Vercel termine un nuevo despliegue. Después inicia sesión, pega el ID o enlace de una carpeta autorizada y pulsa **Sincronizar carpeta**.
+5. Agrega las variables de OpenAI indicadas arriba. Si ya tienes documentos en un Vector Store, configura su ID para conservar esa base.
+6. Publica los cambios del código y espera a que Vercel termine un nuevo despliegue. Abre el agente, pega el ID o enlace de una carpeta autorizada y pulsa **Sincronizar carpeta**.
 
 Si falta la cuenta de servicio o Upstash, la sincronización de Vercel no podrá completarse. `credentials.json`, `token.json` y el flujo OAuth Desktop son solo para ejecución local; no los subas para resolver la autenticación del despliegue.
 
@@ -186,7 +177,6 @@ Si el repositorio está conectado a Vercel, el `git push` inicia el despliegue s
 5. Modifica un documento, sincroniza y comprueba que se actualice en el índice.
 6. Elimina un documento de prueba de Drive, sincroniza y comprueba que se retire del índice.
 7. Cambia a otra carpeta autorizada, confirma la operación y revisa el nuevo listado. Los archivos originales deben seguir en Drive.
-8. Cierra sesión, vuelve a abrir el sitio e inicia sesión de nuevo para observar el ciclo de la cookie.
 
 ## 10. Pruebas automáticas
 
@@ -200,7 +190,7 @@ Las pruebas locales no requieren claves reales ni consumen OpenAI.
 
 OpenAI cobra por uso del modelo, búsqueda y almacenamiento según sus tarifas vigentes. El contenido de los archivos sincronizados se transmite a OpenAI para indexación. Actualizar un documento puede generar cargos transitorios mientras se reemplaza la versión anterior. No envíes información confidencial, datos personales ni material sin permiso. Comprueba las respuestas contra las fuentes: RAG puede equivocarse. La eliminación del índice puede tener consistencia eventual y tardar en reflejarse. Las respuestas sin una cita explícita verificable no se presentan como fuente.
 
-La cuenta de servicio puede leer únicamente las carpetas que se compartan con ella, pero todas las personas que tengan la clave administrativa comparten el mismo acceso. Para un servicio con usuarios distintos se necesitarían autenticación individual y permisos por usuario. Rota o revoca cualquier credencial que se haya publicado o compartido accidentalmente, aunque luego se haya borrado del repositorio.
+La aplicación permite consultas y sincronización sin inicio de sesión; limita el acceso al sitio y configura correctamente las carpetas compartidas. La cuenta de servicio puede leer únicamente las carpetas que se compartan con ella. Rota o revoca cualquier credencial que se haya publicado o compartido accidentalmente, aunque luego se haya borrado del repositorio.
 
 ## Entrega
 
