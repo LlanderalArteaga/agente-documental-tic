@@ -131,3 +131,61 @@ body { min-height: 100vh; margin: 0; background: var(--paper); color: var(--ink)
     .answer-panel { padding: 17px 15px 13px; }
     .ai-tag { display: none; }
 }
+
+/* Tema oscuro */
+:root {
+    --navy: #091922;
+    --navy-soft: #102631;
+    --teal: #57c7b8;
+    --teal-dark: #36aa9e;
+    --mint: #173d3d;
+    --paper: #0b171e;
+    --white: #12252e;
+    --ink: #e4edef;
+    --muted: #99aab0;
+    --line: #263b44;
+    --orange: #f0ae70;
+}
+body { background: var(--paper); color: var(--ink); }
+.topbar { border-bottom: 1px solid #1a3039; }
+.brand-mark { background: #122d38; border-color: #31505b; }
+.server-status { border-color: #29434d; color: #c2d2d6; }
+.page-intro h1,.answer-heading h2,.library-title-row h2,.folder-heading h3 { color: #e8f1f3; }
+.page-intro p,.answer-heading p,.library-title-row p,.folder-heading p { color: #98aab0; }
+.eyebrow { color: #6ed0c2; }
+.composer,.answer-panel,.library-panel { border-color: #263c46; background: #12252e; box-shadow: 0 12px 32px rgba(0,0,0,.16); }
+.composer>label,.sources-wrap h3 { color: #91a5ac; }
+.composer textarea { color: #e1edef; }
+.composer textarea::placeholder { color: #788d95; }
+.composer:focus-within { border-color: #4d9e99; box-shadow: 0 0 0 3px rgba(87,199,184,.08); }
+.composer-footer,.sources-wrap,.library-topline,.folder-settings,.library-footer { border-color: #263b44; }
+.search-toggle { color: #b1c0c4; }
+.switch-track { background: #45565d; }
+.search-toggle input:checked+.switch-track { background: #3b9f96; }
+.keyboard-hint,.page-foot,.library-empty-note,.helper-copy,.library-footer { color: #81969d; }
+.answer-icon,.library-icon { background: #183c3d; color: #68d0c0; }
+.answer { color: #c7d5d8; }
+.ai-tag { background: #1b333d; color: #99adb3; }
+.list-group-item { color: #aebfc3; }
+.list-group-item a,.doc-item a { color: #74d0c3; }
+.doc-item { border-color: #263b44; }
+.doc-item::before { color: #62b7ab; }
+.doc-count { background: #1a3b3b; color: #79d3c4; }
+.folder-input { border-color: #30464f; background: #0e2028; color: #e1edef; }
+.folder-input:focus { border-color: #4d9e99; box-shadow: 0 0 0 3px rgba(87,199,184,.08); }
+.folder-input::placeholder { color: #71868e; }
+.drive-icon { border-color: #315348; color: #77c7a3; }
+.sync-button { border-color: #315a59; background: #173634; color: #81d8ca; }
+.sync-button:hover { background: #204744; }
+.library-empty-note { color: #8da0a5; }
+.empty-dot { background: var(--orange); }
+.status-message { color: #81d5c7; }
+.status-message.text-danger { color: #ff9788; }
+.suggestions { margin-top: 18px; padding-top: 15px; border-top: 1px solid #263b44; }
+.suggestions-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; color: #91a5ac; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+.suggestions-heading span:last-child { color: #68c8ba; font-size: 14px; }
+.suggestion-list { display: grid; gap: 6px; }
+.suggestion-button { width: 100%; padding: 8px 10px; border: 1px solid #2a414a; border-radius: 7px; background: #162b34; color: #c5d5d8; font: 10px/1.45 var(--sans); text-align: left; overflow-wrap: anywhere; transition: border-color .15s, background .15s, color .15s; }
+.suggestion-button::after { float: right; margin-left: 5px; color: #61bfb3; content: '↗'; }
+.suggestion-button:hover { border-color: #4b8582; background: #1a383c; color: #e5f3f2; }
+.suggestion-button:focus-visible { outline: 2px solid #62bfb4; outline-offset: 2px; }

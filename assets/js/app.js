@@ -28,10 +28,16 @@ async function loadDocuments() {
 
     const box = el('documents');
     box.replaceChildren();
+    const documentPrompt = el('suggested-questions').querySelector('.suggestion-button:last-child');
     if (!result.documents.length) {
         box.textContent = 'Aun no hay documentos indexados.';
+        documentPrompt.textContent = '¿Qué información importante contienen?';
+        documentPrompt.dataset.prompt = '¿Qué información importante contienen mis documentos?';
         return;
     }
+    const sampleName = result.documents[0].name;
+    documentPrompt.textContent = `Pregunta sobre: ${sampleName}`;
+    documentPrompt.dataset.prompt = `¿Qué información importante contiene el documento "${sampleName}"?`;
     for (const item of result.documents) {
         const div = document.createElement('div');
         div.className = 'doc-item';
@@ -119,6 +125,12 @@ async function sync() {
 
 el('ask').addEventListener('click', ask);
 el('sync').addEventListener('click', sync);
+el('suggested-questions').addEventListener('click', event => {
+    const button = event.target.closest('[data-prompt]');
+    if (!button) return;
+    el('question').value = button.dataset.prompt;
+    el('question').focus();
+});
 el('question').addEventListener('keydown', event => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) ask();
 });

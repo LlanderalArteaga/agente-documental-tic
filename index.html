@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#102b3b">
+    <meta name="theme-color" content="#091922">
     <meta name="description" content="Agente de consulta documental conectado con Google Drive.">
     <title>Archivo TIC | Asistente documental</title>
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
@@ -62,6 +62,14 @@
             <div class="library-topline"><span class="library-icon" aria-hidden="true">▤</span><span class="eyebrow">FUENTES</span></div>
             <div class="library-title-row"><div><h2>Biblioteca</h2><p>Tus documentos disponibles</p></div><span class="doc-count" id="doc-count">0</span></div>
             <div class="doc-list" id="documents" aria-live="polite">Cargando documentos…</div>
+            <section class="suggestions" aria-label="Preguntas sugeridas">
+                <div class="suggestions-heading"><span>PRUEBA PREGUNTAR</span><span aria-hidden="true">✳</span></div>
+                <div id="suggested-questions" class="suggestion-list">
+                    <button class="suggestion-button" type="button" data-prompt="Resume los puntos principales de los documentos.">Resume los puntos principales</button>
+                    <button class="suggestion-button" type="button" data-prompt="¿Qué temas aparecen en más de un documento?">¿Qué temas se repiten?</button>
+                    <button class="suggestion-button" type="button" data-prompt="¿Qué información importante contienen mis documentos?">¿Qué información importante contienen?</button>
+                </div>
+            </section>
             <div class="library-empty-note"><span class="empty-dot"></span> El contenido se actualiza desde Drive</div>
 
             <div class="folder-settings">
